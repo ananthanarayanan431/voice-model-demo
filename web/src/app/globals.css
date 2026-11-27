@@ -1,0 +1,21 @@
+@import 'tailwindcss';
+
+/* Class-based dark mode: a theme toggle writes `.dark` on <html>. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Semantic colours, defined once per theme. Components use the utilities these
+   generate (bg-canvas, text-ink, ...) rather than raw palette steps. */
+:root {
+  --ui-canvas: oklch(0.99 0.003 85);
+  --ui-text: oklch(0.22 0.008 75);
+}
+
+.dark {
+  --ui-canvas: oklch(0.17 0.006 70);
+  --ui-text: oklch(0.95 0.005 85);
+}
+
+@theme inline {
+  --color-canvas: var(--ui-canvas);
+  --color-ink: var(--ui-text);
+}

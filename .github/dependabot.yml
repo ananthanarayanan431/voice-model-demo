@@ -1,0 +1,38 @@
+# Weekly update PRs. Python dependencies are pinned in agents/*/uv.lock and
+# upgraded with `uv lock --upgrade`, which Dependabot does not manage.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+
+  # The pnpm workspace: one lockfile at the root covers web/.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      # One PR for the routine patch/minor bumps; majors still come separately.
+      minor-and-patch:
+        update-types: [minor, patch]
+    ignore:
+      # TypeScript 7 is the native port with no JavaScript compiler API, which
+      # openapi-typescript needs to generate libs/voice-agent-contracts. web/
+      # is already on 7; move the rest by hand once openapi-typescript supports it.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: docker
+    directories:
+      - /agents/voice_agent
+      - /web
+    schedule:
+      interval: weekly
+    ignore:
+      # The backend's Python version is one decision across .python-version,
+      # pyproject.toml (ruff, pyright) and the Dockerfile. Bumping only the image
+      # left CI testing one version while the image shipped another, and 3.15 broke
+      # the build (no zstandard wheel). Upgrade Python by hand, everywhere at once.
+      - dependency-name: python
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]

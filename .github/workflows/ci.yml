@@ -1,0 +1,194 @@
+# Quality gates. CI runs exactly what developers run locally:
+#   Python:  scripts/ci/python-checks.sh <package-dir> [unit|audit]
+#   Web:     pnpm format:check | lint | typecheck | test | build, then pnpm audit
+#   Build:   the compose files validate, and every image builds from the repo root
+#
+# Pull requests run only the gates for the areas they touch. Pushes to main and
+# manual runs always run everything. A skipped job reports as "skipped", which
+# satisfies required checks.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push to the same branch cancels the run still in progress.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: Detect changed areas
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      python: ${{ github.event_name != 'pull_request' || steps.filter.outputs.python == 'true' }}
+      web: ${{ github.event_name != 'pull_request' || steps.filter.outputs.web == 'true' }}
+      infra: ${{ github.event_name != 'pull_request' || steps.filter.outputs.infra == 'true' }}
+    steps:
+      - uses: dorny/paths-filter@v4
+        id: filter
+        if: github.event_name == 'pull_request'
+        with:
+          filters: |
+            ci: &ci
+              - .github/workflows/ci.yml
+              - scripts/ci/**
+            python:
+              - *ci
+              - agents/**
+              - pyproject.toml
+              - .python-version
+            web:
+              - *ci
+              - web/**
+              - libs/**
+              # The contract check exports the agent's OpenAPI document.
+              - agents/**
+              - package.json
+              - pnpm-lock.yaml
+              - pnpm-workspace.yaml
+              - .npmrc
+              - .nvmrc
+              - .prettierrc
+              - .prettierignore
+            infra:
+              - *ci
+              - infra/**
+              - .dockerignore
+              - "**/Dockerfile"
+
+  quality:
+    name: Lint, types, tests (${{ matrix.package }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [agents/voice_agent]
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install uv
+        # Pinned exactly: this action publishes no floating major tag (`v10`
+        # does not resolve). Dependabot keeps it current.
+        uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "**/uv.lock"
+      - name: Install Python
+        # Reads the root .python-version, the same pin used locally.
+        run: uv python install
+      - name: Unit gate
+        # Also enforces the package's coverage floor ([tool.coverage.report]).
+        run: scripts/ci/python-checks.sh "${{ matrix.package }}" unit
+
+  audit:
+    name: Dependency audit (${{ matrix.package }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: changes
+    if: needs.changes.outputs.python == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [agents/voice_agent]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.3.3
+      - name: Audit gate
+        run: scripts/ci/python-checks.sh "${{ matrix.package }}" audit
+
+  web:
+    name: Web format, lint, types, tests, build, audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: changes
+    if: needs.changes.outputs.web == 'true'
+    steps:
+      - uses: actions/checkout@v7
+      # pnpm's version comes from "packageManager" in package.json.
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+          cache-dependency-glob: "**/uv.lock"
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Contract check (OpenAPI snapshot and generated types)
+        # Fails when the agent's API changed without regenerating its web contract:
+        #   make -C agents/voice_agent openapi
+        # The key only satisfies settings validation; nothing is called.
+        env:
+          OPENROUTER_API_KEY: ci-placeholder
+        run: |
+          (cd agents/voice_agent && uv run --locked python -m voice_agent.export_openapi) > "$RUNNER_TEMP/openapi.json"
+          diff -u libs/voice-agent-contracts/openapi.json "$RUNNER_TEMP/openapi.json"
+          pnpm --filter @voiceagent/voice-agent-contracts check
+      - name: Format
+        run: pnpm format:check
+      - name: Lint
+        run: pnpm lint
+      - name: Types
+        run: pnpm typecheck
+      - name: Unit and component tests
+        run: pnpm test
+      - name: Build
+        run: pnpm build
+      - name: Dependency audit (production, high and above)
+        run: pnpm audit --prod --audit-level high
+
+  build:
+    name: Compose config and images
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Runs when the gates for the changed areas passed (a skipped gate is fine).
+    needs: [changes, quality, web]
+    if: >-
+      !cancelled() && !contains(needs.*.result, 'failure') &&
+      (needs.changes.outputs.python == 'true' || needs.changes.outputs.web == 'true' ||
+       needs.changes.outputs.infra == 'true')
+    steps:
+      - uses: actions/checkout@v7
+      - name: Validate compose files and scripts
+        run: |
+          cp infra/.env.example infra/.env
+          cp agents/voice_agent/.env.example agents/voice_agent/.env
+          docker compose -f infra/docker-compose.yml config --quiet
+          docker compose -f infra/docker-compose.backend.yml config --quiet
+          docker compose -f infra/docker-compose.frontend.yml config --quiet
+          bash -n agents/voice_agent/run.sh
+          bash -n web/run.sh
+      - uses: docker/setup-buildx-action@v4
+      # One cache scope per image, so the builds never overwrite each other's layers.
+      - name: Build voice agent image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: agents/voice_agent/Dockerfile
+          push: false
+          cache-from: type=gha,scope=voice-agent
+          cache-to: type=gha,scope=voice-agent,mode=max,ignore-error=true
+      - name: Build web image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: web/Dockerfile
+          push: false
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,scope=web,mode=max,ignore-error=true

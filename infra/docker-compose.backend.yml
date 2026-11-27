@@ -1,0 +1,33 @@
+# The voice agent API: its own compose project, joined to the infra's network.
+# Usually driven by `make -C agents/voice_agent docker-up`. Directly, from the
+# repo root, with the infra already up (make -C infra up):
+#   docker compose -f infra/docker-compose.backend.yml up -d --build
+#
+# Compose cannot wait on another project's services, so the infra must be healthy
+# before `up`; the API refuses to start while MongoDB is unreachable.
+name: voiceagent-agents
+
+services:
+  voice-agent-api:
+    build:
+      context: ..
+      dockerfile: agents/voice_agent/Dockerfile
+    image: voiceagent/voice-agent:local
+    container_name: voiceagent-voice-agent-api
+    restart: unless-stopped
+    # The agent's own settings (API keys, models). MONGO_URI is overridden below
+    # because inside the network MongoDB is reached by container name.
+    env_file: ../agents/voice_agent/.env
+    environment:
+      # The .env is written for local development (autoreload, console logs); the
+      # container always runs the production server settings.
+      RELOAD: "false"
+      LOG_JSON: "true"
+      MONGO_URI: mongodb://${MONGO_USER:-voice_user}:${MONGO_PASSWORD:-voice_password}@voiceagent-mongo:27017/?directConnection=true
+    ports:
+      - "${VOICE_AGENT_PORT:-8000}:8000"
+
+networks:
+  default:
+    name: voiceagent-net
+    external: true

@@ -1,0 +1,8 @@
+# Normalise line endings to LF in the repo, whatever the OS that checked it out.
+* text=auto eol=lf
+*.sh text eol=lf
+.githooks/* text eol=lf
+
+# Lockfiles are generated: collapse them in GitHub diffs and language stats.
+**/uv.lock linguist-generated=true -diff
+pnpm-lock.yaml linguist-generated=true -diff

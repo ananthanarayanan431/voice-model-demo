@@ -1,0 +1,40 @@
+# Area labels for pull requests, applied by .github/workflows/pr-labels.yml from
+# the paths a PR touches. A PR gets every label whose paths it matches.
+
+agent:
+  - changed-files:
+      - any-glob-to-any-file: agents/**
+
+web:
+  - changed-files:
+      - any-glob-to-any-file: web/**
+
+lib:
+  - changed-files:
+      - any-glob-to-any-file: libs/**
+
+infra:
+  - changed-files:
+      - any-glob-to-any-file:
+          - infra/**
+          - "**/Dockerfile"
+          - .dockerignore
+          - web/nginx.conf.template
+
+dependencies:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/uv.lock"
+          - pnpm-lock.yaml
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file:
+          - .github/**
+          - scripts/ci/**
+          - .githooks/**
+
+docs:
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/*.md"

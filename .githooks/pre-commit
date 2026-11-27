@@ -1,0 +1,96 @@
+#!/usr/bin/env bash
+# pre-commit: fast checks on the files being committed.
+#
+#   1. No private keys and no files over 1 MB.
+#   2. Python (agents/*): ruff lint and format check, per agent.
+#   3. Web app: prettier check and oxlint.
+#
+# Only staged files are checked, so a commit stays quick. CI runs the full suite
+# (scripts/ci/python-checks.sh and the root package.json scripts).
+#
+# Activate once per clone:  git config core.hooksPath .githooks
+
+set -euo pipefail
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+
+fail() {
+  echo "pre-commit: $1" >&2
+  echo "Commit rejected. Fix the files above, stage them, and commit again." >&2
+  exit 1
+}
+
+# Added, copied or modified files only; deletions have nothing to check.
+staged=()
+while IFS= read -r -d '' file; do
+  staged+=("$file")
+done < <(git diff --cached --name-only --diff-filter=ACM -z)
+
+[ "${#staged[@]}" -gt 0 ] || exit 0
+
+# --- 1. Secrets and large files ------------------------------------------------
+max_bytes=$((1024 * 1024))
+for file in "${staged[@]}"; do
+  size="$(git cat-file -s ":$file")"
+  # Lockfiles are generated and legitimately large.
+  case "$file" in
+    */uv.lock | */package-lock.json) size=0 ;;
+  esac
+  if [ "$size" -gt "$max_bytes" ]; then
+    fail "$file is $size bytes (max $max_bytes). Keep large files out of git."
+  fi
+  if git show ":$file" | grep -Eq -- '-----BEGIN ([A-Z]+ )?PRIVATE KEY-----'; then
+    fail "$file contains a private key."
+  fi
+done
+
+# --- 2. Python packages (agents/*) ---------------------------------------------
+# Each agent has its own uv project; ruff runs from it, on that agent's files only.
+py_packages=()
+for file in "${staged[@]}"; do
+  case "$file" in
+    agents/*/*.py | agents/*/*/*.py | agents/*/*/*/*.py | agents/*/*/*/*/*.py)
+      pkg="$(printf '%s' "$file" | cut -d/ -f1-2)"
+      case " ${py_packages[*]-} " in *" $pkg "*) ;; *) py_packages+=("$pkg") ;; esac
+      ;;
+  esac
+done
+
+for pkg in ${py_packages[@]+"${py_packages[@]}"}; do
+  pkg_files=()
+  for file in "${staged[@]}"; do
+    case "$file" in "$pkg"/*.py) pkg_files+=("${file#"$pkg"/}") ;; esac
+  done
+  [ "${#pkg_files[@]}" -gt 0 ] || continue
+  (
+    cd "$pkg"
+    uv run --quiet ruff check "${pkg_files[@]}"
+    uv run --quiet ruff format --check "${pkg_files[@]}"
+  ) || fail "ruff found problems in $pkg. Run \`make -C $pkg fmt\` to fix most of them."
+done
+
+# --- 3. Formatting (whole repo) and web lint --------------------------------------------------
+# Prettier (root config) checks the staged files it covers; oxlint checks web code.
+fmt_files=()
+lint_files=()
+for file in "${staged[@]}"; do
+  # Every file Prettier understands; it skips the rest (--ignore-unknown) and
+  # whatever .prettierignore lists.
+  fmt_files+=("$file")
+  case "$file" in
+    web/*.ts | web/*.tsx | web/*.js | web/*.jsx) lint_files+=("${file#web/}") ;;
+  esac
+done
+
+if [ "${#fmt_files[@]}" -gt 0 ]; then
+  [ -d node_modules ] || fail "node_modules is missing. Run \`pnpm install\` at the repo root."
+  pnpm exec prettier --check --ignore-unknown "${fmt_files[@]}" \
+    || fail "prettier found unformatted files. Run \`pnpm format\` to fix them."
+  if [ "${#lint_files[@]}" -gt 0 ]; then
+    (cd web && pnpm exec oxlint --deny-warnings "${lint_files[@]}") \
+      || fail "oxlint found problems in web/."
+  fi
+fi
+
+exit 0

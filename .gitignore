@@ -1,0 +1,39 @@
+# Repo-wide ignores. Language-specific rules live in agents/<name>/.gitignore
+# and web/.gitignore, next to the code they apply to.
+
+# Node (the pnpm workspace root)
+node_modules/
+
+# Python tool caches and coverage data. Ruff, pytest and coverage take their
+# config from the root pyproject.toml, so they write these at the repo root.
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Secrets — only .env.example files are committed
+.env
+.env.*
+!.env.example
+
+# Personal Claude Code settings (shared project config in .claude/ stays tracked)
+.claude/settings.local.json
+
+# Editors
+.idea/
+.vs/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# OS
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+

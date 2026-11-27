@@ -5,13 +5,11 @@ part of the repo follows, and what CI checks before a change lands.
 
 ## Setup
 
-Prerequisites: Docker with the Compose plugin, [uv](https://docs.astral.sh/uv/)
+Prerequisites: Docker with the Compose plugin (optional, for the stack), [uv](https://docs.astral.sh/uv/)
 (it installs the Python in `.python-version`), and Node (`.nvmrc`) with pnpm 10.
 
 ```bash
 git config core.hooksPath .githooks         # the repo's commit-msg and pre-commit hooks
-cp infra/.env.example infra/.env            # MongoDB credentials
-make -C infra up                            # start MongoDB
 make -C agents/voice_agent install env     # agent venv and .env (fill in the keys)
 pnpm install                                # web app and libs
 ```
@@ -71,7 +69,6 @@ Enforced by ruff and pyright (strict), configured once in the root
   Use `logger.exception(...)` inside `except` blocks.
 - Raise subclasses of `VoiceAgentError`; never `assert` for runtime checks.
 - No side effects at import: no DB connections or clients at module level.
-- Never construct a `MongoClient` directly; use the shared helpers.
 
 ### Web app
 

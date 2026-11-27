@@ -9,7 +9,7 @@
 | ---------- | ----------------------------------------------------------------- |
 | Port       | 8000                                                              |
 | Entry      | `uvicorn voice_agent.main:app` (or `./run.sh`, which adds reload) |
-| Health     | `GET /health` (liveness), `GET /ready` (MongoDB ping)             |
+| Health     | `GET /health` (liveness), `GET /ready` (dependency checks)        |
 | API prefix | `/api/v1` (`routes/v1`)                                           |
 | Module     | `voice_agent`; Python from the root `.python-version`             |
 | Contract   | `libs/voice-agent-contracts` (`make openapi`)                     |
@@ -28,12 +28,10 @@
 | `voice_agent/chat/`              | The LangGraph graph: state, nodes, edges, tools, chains, model        |
 | `voice_agent/prompts/`           | Every model prompt, one module each                                   |
 | `voice_agent/services/`          | Use cases (one turn of a conversation, ...)                           |
-| `voice_agent/db/`                | Mongo client and indexes                                              |
-| `voice_agent/rag/`               | Extractors, splitter, embeddings, retriever, memory                   |
 | `voice_agent/integrations/`      | Third-party clients, built only by `factory.py`                       |
 | `voice_agent/models/`            | Domain models                                                         |
-| `voice_agent/evals/`             | Dataset generation, upload and evaluation                             |
 | `tests/unit/`, `tests/contract/` | Module tests; the HTTP/WebSocket API as clients see it                |
+| `scripts/tts_hello.py`           | One Vartaloop TTS call (POST /v1/tts -> hello.ogg)                    |
 | `tests/fakes.py`                 | Scripted chat model, in-memory checkpointer and services              |
 
 ## Rules
@@ -50,8 +48,7 @@
 - `except Exception` only at a real boundary, with the traceback logged and
   `# noqa: BLE001 - <why>`. Otherwise catch the specific exception.
 - Log with loguru and arguments, never f-strings: `logger.info("Loaded {}", n)`.
-- No side effects at import time; never construct a `MongoClient` directly
-  (use `db.client.get_mongo_client()`).
+- No side effects at import time: no clients or connections at module level.
 - Entry points (`main.py`, `server.py`, `export_openapi.py`) stay at the package
   top: uvicorn, Docker, `run.sh`, the Makefile and CI call them by path.
 - Third-party services live in `integrations/`, one module per provider, each
@@ -61,11 +58,11 @@
 
 ## Commands
 
-`make` in this directory lists every shortcut. MongoDB runs from `infra/`.
+`make` in this directory lists every shortcut.
 
 ```bash
-make -C ../../infra up     # MongoDB
 make env                   # create .env, then fill in the API keys
+uv run python scripts/tts_hello.py  # one Vartaloop TTS call -> hello.ogg
 ./run.sh                   # API with reload on :8000
 make fmt                   # ruff format + safe fixes
 make test                  # = scripts/ci/python-checks.sh agents/voice_agent unit

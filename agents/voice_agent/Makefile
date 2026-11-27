@@ -1,6 +1,5 @@
 # Shortcuts for the voice agent; run from this directory (`make` lists them).
 # The gates are the CI ones (scripts/ci/python-checks.sh), run from the repo root.
-# MongoDB runs from infra/: make -C ../../infra up
 .DEFAULT_GOAL := help
 .PHONY: help install env dev fmt test audit coverage openapi shell \
         docker-up docker-down docker-logs docker-ps clean
@@ -20,7 +19,7 @@ env: ## Create .env from .env.example (never overwrites an existing .env)
 	@test -f .env && echo ".env already exists, leaving it alone" \
 		|| (cp .env.example .env && echo "Created .env: fill in the API keys")
 
-dev: ## Run the API with reload on :8000 (MongoDB must be up)
+dev: ## Run the API with reload on :8000
 	./run.sh api
 
 fmt: ## Format the code and apply safe lint fixes
@@ -43,7 +42,7 @@ openapi: ## Re-export the OpenAPI document and regenerate the web contract types
 shell: ## Python REPL with the project environment
 	uv run python
 
-docker-up: ## Build and start the agent in Docker (infra must be up)
+docker-up: ## Build and start the agent in Docker
 	$(COMPOSE) up -d --build --wait $(SERVICE)
 
 docker-down: ## Stop and remove the agent's container only

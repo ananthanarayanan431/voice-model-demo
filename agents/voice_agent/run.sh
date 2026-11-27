@@ -3,7 +3,7 @@
 #
 #   ./run.sh [api]   the API with reload on :8000
 #
-# Needs MongoDB running (make -C ../../infra up). Reads .env (copy .env.example), or the
+# Reads .env (copy .env.example), or the
 # environment if there is none.
 set -euo pipefail
 
@@ -23,7 +23,7 @@ load_env() {
         set +a
     fi
     local missing=()
-    for name in ANTHROPIC_API_KEY OPENROUTER_API_KEY MONGO_URI; do
+    for name in ANTHROPIC_API_KEY VARTALOOP_API_KEY; do
         [ -n "${!name:-}" ] || missing+=("$name")
     done
     if [ "${#missing[@]}" -gt 0 ]; then

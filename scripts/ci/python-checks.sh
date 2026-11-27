@@ -18,16 +18,7 @@ PIP_AUDIT_VERSION="2.10.0"
 
 # Advisories with no fix we can install yet. Each entry says why and when to
 # re-check; remove it as soon as the blocker is gone.
-#
-# filelock < 4.0 is pinned by litellm (pulled in by opik for evaluation), and
-# every fix is in filelock 4.x. Re-check when litellm drops `filelock<4.0`.
-# Recorded 2026-11-06.
-AUDIT_IGNORES=(
-  CVE-2026-112907 CVE-2026-112908 CVE-2026-112909 CVE-2026-112910
-  CVE-2026-112911 CVE-2026-112912 CVE-2026-112913 CVE-2026-112915
-  CVE-2026-112935 CVE-2026-112936 CVE-2026-112938 CVE-2026-112939
-  CVE-2026-112940
-)
+AUDIT_IGNORES=()
 
 package_dir="${1:?usage: $0 <package-dir> [unit|audit|all]}"
 gate="${2:-unit}"
@@ -58,7 +49,8 @@ audit() {
   uv export --locked --no-dev --no-emit-project --no-hashes --quiet \
     | grep -v -E '^(-e |\.|/)' >"$requirements"
   local ignore_args=()
-  for id in "${AUDIT_IGNORES[@]}"; do
+  # The +-guard keeps an empty list working under `set -u` on bash 3.2 (macOS).
+  for id in ${AUDIT_IGNORES[@]+"${AUDIT_IGNORES[@]}"}; do
     ignore_args+=(--ignore-vuln "$id")
   done
   uvx "pip-audit@$PIP_AUDIT_VERSION" --strict --disable-pip --no-deps \

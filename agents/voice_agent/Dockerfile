@@ -30,7 +30,7 @@ ENV PATH="/app/.venv/bin:$PATH" \
     RELOAD=false \
     LOG_JSON=true \
     # The package lives in site-packages; data/ (and any .env) live here, and
-    # relative paths such as EXTRACTION_METADATA_FILE_PATH resolve against this.
+    # relative paths resolve against this.
     VOICE_AGENT_DIR=/app
 
 RUN useradd --create-home --uid 1000 app

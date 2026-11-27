@@ -1,5 +1,5 @@
 # The web app (React, served by nginx): its own compose project, joined to the
-# infra's network like the agent. From the repo root, with the agent running:
+# agent's network (voiceagent-net). From the repo root, with the agent running:
 #   docker compose -f infra/docker-compose.frontend.yml up -d --build
 #
 # nginx reverse-proxies /api to the agent, so the browser talks to one origin.

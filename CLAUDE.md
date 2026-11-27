@@ -1,15 +1,15 @@
 # VoiceAgents
 
-> A FastAPI + LangGraph voice agent backed by MongoDB, and a React web app that
+> A FastAPI + LangGraph voice agent (Vartaloop TTS), and a React web app that
 > talks to it. This repo is currently a skeleton: the layout, tooling and gates
 > are in place, the logic is not.
 
-| Part         | Where                        | Port  | Agent notes                                                  |
-| ------------ | ---------------------------- | ----- | ------------------------------------------------------------ |
-| Voice agent  | `agents/voice_agent`         | 8000  | [agents/voice_agent/CLAUDE.md](agents/voice_agent/CLAUDE.md) |
-| Web app      | `web/`                       | 5173  | [web/CLAUDE.md](web/CLAUDE.md)                               |
-| API contract | `libs/voice-agent-contracts` |       | [libs/README.md](libs/README.md)                             |
-| MongoDB      | `infra/docker-compose.yml`   | 27017 | `make -C infra help`                                         |
+| Part         | Where                        | Port | Agent notes                                                  |
+| ------------ | ---------------------------- | ---- | ------------------------------------------------------------ |
+| Voice agent  | `agents/voice_agent`         | 8000 | [agents/voice_agent/CLAUDE.md](agents/voice_agent/CLAUDE.md) |
+| Web app      | `web/`                       | 5173 | [web/CLAUDE.md](web/CLAUDE.md)                               |
+| API contract | `libs/voice-agent-contracts` |      | [libs/README.md](libs/README.md)                             |
+| Docker stack | `infra/`                     |      | `make -C infra help`                                         |
 
 Human-facing docs: [README.md](README.md), [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -48,6 +48,5 @@ Human-facing docs: [README.md](README.md), [CONTRIBUTING.md](CONTRIBUTING.md).
 scripts/ci/python-checks.sh <agent-dir> [unit|audit|all]  # Python gate (ruff, pyright strict, pytest + coverage, pip-audit)
 pnpm check                                                # web gate (prettier, oxlint, tsc, vitest, build)
 pnpm format                                               # prettier --write over the repo
-make -C infra up                                          # MongoDB
-make -C infra stack-up                                    # MongoDB, agent and web app in Docker
+make -C infra stack-up                                    # agent and web app in Docker
 ```

@@ -133,9 +133,6 @@ jobs:
       - name: Contract check (OpenAPI snapshot and generated types)
         # Fails when the agent's API changed without regenerating its web contract:
         #   make -C agents/voice_agent openapi
-        # The key only satisfies settings validation; nothing is called.
-        env:
-          OPENROUTER_API_KEY: ci-placeholder
         run: |
           (cd agents/voice_agent && uv run --locked python -m voice_agent.export_openapi) > "$RUNNER_TEMP/openapi.json"
           diff -u libs/voice-agent-contracts/openapi.json "$RUNNER_TEMP/openapi.json"
@@ -167,9 +164,7 @@ jobs:
       - uses: actions/checkout@v7
       - name: Validate compose files and scripts
         run: |
-          cp infra/.env.example infra/.env
           cp agents/voice_agent/.env.example agents/voice_agent/.env
-          docker compose -f infra/docker-compose.yml config --quiet
           docker compose -f infra/docker-compose.backend.yml config --quiet
           docker compose -f infra/docker-compose.frontend.yml config --quiet
           bash -n agents/voice_agent/run.sh

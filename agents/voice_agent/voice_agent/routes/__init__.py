@@ -1,3 +1,3 @@
-"""voice_agent.routes.__init__: placeholder (agent skeleton, no logic yet)."""
+"""HTTP routes: health checks at the top level, the API under /api/v1."""
 
 from __future__ import annotations

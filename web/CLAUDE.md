@@ -1,6 +1,8 @@
 # VoiceAgents web app
 
-> React 19 + Vite single-page app for the voice agent. Skeleton only.
+> React 19 + Vite app: the Sunrise Hospitals patient assistant call screen. The
+> browser's speech recognition shows the patient's words live; each final
+> sentence goes to `POST /api/v1/chat`, and the reply plays from `GET /api/v1/tts`.
 
 ## Quick Reference
 
@@ -13,6 +15,16 @@
 | Lint     | oxlint (`.oxlintrc.json`); Prettier from the root `.prettierrc`                    |
 | Contract | REST types from `@voiceagent/voice-agent-contracts` (generated)                    |
 | Serving  | nginx in Docker (`nginx.conf.template`, `security-headers.conf`)                   |
+
+## Key Files
+
+| File                                       | Purpose                                                       |
+| ------------------------------------------ | ------------------------------------------------------------- |
+| `src/features/voice/voice-page.tsx`        | The call screen: transcript, live words, controls, side panel |
+| `src/features/voice/use-voice-call.ts`     | Mic -> agent -> audio -> mic; the mic is off while replying   |
+| `src/features/voice/call-state.ts`         | Pure reducer for the call (tested without a browser)          |
+| `src/features/voice/speech-recognition.ts` | Types and helpers for the Web Speech API (Chrome, Edge)       |
+| `src/lib/api.ts`                           | REST client; every failure becomes an `ApiError`              |
 
 ## Rules
 

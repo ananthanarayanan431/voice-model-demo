@@ -1,6 +1,6 @@
 # Voice Agent
 
-FastAPI service and LangGraph agent for VoiceAgents. Skeleton only; see
+FastAPI service behind the Sunrise Hospitals patient assistant demo; see
 [CLAUDE.md](CLAUDE.md) for the package layout and rules.
 
 ```bash

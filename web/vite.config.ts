@@ -20,7 +20,6 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      // `ws: true` is what lets /api/v1/ws/chat upgrade through the proxy.
       '/api': { target: BACKEND, changeOrigin: true, ws: true },
       '/health': { target: BACKEND, changeOrigin: true },
       '/ready': { target: BACKEND, changeOrigin: true },
@@ -35,8 +34,6 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     css: false,
-    // The skeleton has no tests yet; drop this once the first one lands.
-    passWithNoTests: true,
     coverage: {
       provider: 'v8',
       include: ['src/**/*.{ts,tsx}'],

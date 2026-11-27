@@ -48,8 +48,8 @@ source = ["voice_agent"]
 branch = true
 
 [tool.coverage.report]
-# Skeleton: no logic yet. Raise the floor as code and tests land; never lower it.
-fail_under = 0
+# Raise the floor as coverage grows; never lower it.
+fail_under = 85
 show_missing = true
 skip_covered = true
 exclude_also = ["if TYPE_CHECKING:", "raise NotImplementedError"]

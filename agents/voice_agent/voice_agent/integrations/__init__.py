@@ -1,3 +1,3 @@
-"""voice_agent.integrations.__init__: placeholder (agent skeleton, no logic yet)."""
+"""Third-party services, one module per provider."""
 
 from __future__ import annotations

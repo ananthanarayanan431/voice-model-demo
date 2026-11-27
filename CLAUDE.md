@@ -1,8 +1,8 @@
 # VoiceAgents
 
-> A FastAPI + LangGraph voice agent (Vartaloop TTS), and a React web app that
-> talks to it. This repo is currently a skeleton: the layout, tooling and gates
-> are in place, the logic is not.
+> A FastAPI voice agent (Claude + Vartaloop TTS) and a React web app: the
+> Sunrise Hospitals patient assistant demo. Patients speak in the browser, see
+> a live transcript, and hear the reply.
 
 | Part         | Where                        | Port | Agent notes                                                  |
 | ------------ | ---------------------------- | ---- | ------------------------------------------------------------ |

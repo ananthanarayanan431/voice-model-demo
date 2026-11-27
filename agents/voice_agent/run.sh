@@ -22,14 +22,10 @@ load_env() {
         . ./.env
         set +a
     fi
-    local missing=()
-    for name in ANTHROPIC_API_KEY VARTALOOP_API_KEY; do
-        [ -n "${!name:-}" ] || missing+=("$name")
-    done
-    if [ "${#missing[@]}" -gt 0 ]; then
-        echo "Not set: ${missing[*]}. Copy .env.example to .env and fill it in." >&2
-        exit 1
-    fi
+    # Warn, don't stop: the SDK can also use `ant auth login`, and the app runs
+    # without Vartaloop (replies then show as text only).
+    [ -n "${ANTHROPIC_API_KEY:-}" ] || echo "Note: ANTHROPIC_API_KEY is not set; using the SDK's own credentials." >&2
+    [ -n "${VARTALOOP_API_KEY:-}" ] || echo "Note: VARTALOOP_API_KEY is not set; replies will not be spoken." >&2
 }
 
 run_api() {

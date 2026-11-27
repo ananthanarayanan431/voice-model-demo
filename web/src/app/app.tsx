@@ -1,4 +1,6 @@
-/** App shell: routes go here. Each feature lives in `src/features/<name>/`. */
+import { VoicePage } from '@/features/voice/voice-page'
+
+/** App shell: one screen, the patient assistant call. */
 export function App() {
-  return <main className="bg-canvas text-ink min-h-dvh" />
+  return <VoicePage />
 }

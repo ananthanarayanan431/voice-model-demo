@@ -7,7 +7,7 @@
  */
 import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react'
 
-import { ApiError, resetCall, sendTurn, ttsUrl } from '@/lib/api'
+import { ApiError, audioSrc, resetCall, sendTurn } from '@/lib/api'
 import { callReducer, initialCallState } from './call-state'
 import {
   describeError,
@@ -38,11 +38,9 @@ function messageOf(error: unknown): string {
 export interface VoiceCallOptions {
   /** BCP 47 language for recognition, e.g. 'en-IN' or 'hi-IN'. */
   lang: string
-  /** Speak replies with Vartaloop; false shows them as text only. */
-  speakReplies: boolean
 }
 
-export function useVoiceCall({ lang, speakReplies }: VoiceCallOptions) {
+export function useVoiceCall({ lang }: VoiceCallOptions) {
   const [state, dispatch] = useReducer(callReducer, initialCallState)
   const supported = useMemo(() => getRecognitionConstructor() !== null, [])
 
@@ -53,11 +51,11 @@ export function useVoiceCall({ lang, speakReplies }: VoiceCallOptions) {
   const voiceModeRef = useRef(false)
   /** The microphone should be on; onend restarts it while this is true. */
   const micWantedRef = useRef(false)
-  const optionsRef = useRef({ lang, speakReplies })
+  const optionsRef = useRef({ lang })
 
   useEffect(() => {
-    optionsRef.current = { lang, speakReplies }
-  }, [lang, speakReplies])
+    optionsRef.current = { lang }
+  }, [lang])
 
   const stopListening = useCallback(() => {
     micWantedRef.current = false
@@ -87,9 +85,9 @@ export function useVoiceCall({ lang, speakReplies }: VoiceCallOptions) {
   }, [])
 
   const playReply = useCallback(
-    (text: string) => {
+    (audioUrl: string) => {
       stopAudio()
-      const audio = new Audio(ttsUrl(text))
+      const audio = new Audio(audioSrc(audioUrl))
       audioRef.current = audio
       const finished = () => {
         if (audioRef.current !== audio) return
@@ -110,14 +108,15 @@ export function useVoiceCall({ lang, speakReplies }: VoiceCallOptions) {
       try {
         const result = await sendTurn({ session_id: session, message: text })
         if (session !== sessionRef.current) return // a new call started meanwhile
-        const speak = optionsRef.current.speakReplies && result.reply.length > 0
+        // The server sends an audio link only when speech is configured.
+        const speak = result.audio_url !== null
         dispatch({
           type: 'assistant_replied',
           text: result.reply,
           appointments: result.appointments,
           speak,
         })
-        if (speak) playReply(result.reply)
+        if (result.audio_url) playReply(result.audio_url)
         else afterReply()
       } catch (error) {
         if (session !== sessionRef.current) return

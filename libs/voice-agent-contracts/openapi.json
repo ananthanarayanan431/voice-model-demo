@@ -41,6 +41,41 @@
         "title": "AppointmentOut",
         "type": "object"
       },
+      "ChatReply": {
+        "properties": {
+          "appointments": {
+            "description": "Booked during this turn",
+            "items": {
+              "$ref": "#/components/schemas/AppointmentOut"
+            },
+            "title": "Appointments",
+            "type": "array"
+          },
+          "audio_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Short-lived link to the spoken reply; null when speech is off",
+            "title": "Audio Url"
+          },
+          "reply": {
+            "title": "Reply",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reply",
+          "appointments",
+          "audio_url"
+        ],
+        "title": "ChatReply",
+        "type": "object"
+      },
       "ChatRequest": {
         "properties": {
           "message": {
@@ -50,9 +85,7 @@
             "type": "string"
           },
           "session_id": {
-            "maxLength": 64,
-            "minLength": 8,
-            "pattern": "^[A-Za-z0-9_-]+$",
+            "pattern": "^[A-Za-z0-9_-]{8,64}$",
             "title": "Session Id",
             "type": "string"
           }
@@ -62,27 +95,6 @@
           "message"
         ],
         "title": "ChatRequest",
-        "type": "object"
-      },
-      "ChatResponse": {
-        "properties": {
-          "appointments": {
-            "items": {
-              "$ref": "#/components/schemas/AppointmentOut"
-            },
-            "title": "Appointments",
-            "type": "array"
-          },
-          "reply": {
-            "title": "Reply",
-            "type": "string"
-          }
-        },
-        "required": [
-          "reply",
-          "appointments"
-        ],
-        "title": "ChatResponse",
         "type": "object"
       },
       "DoctorOut": {
@@ -121,20 +133,76 @@
         "title": "DoctorOut",
         "type": "object"
       },
-      "HTTPValidationError": {
+      "ErrorDetail": {
         "properties": {
-          "detail": {
+          "code": {
+            "description": "Stable machine-readable code, e.g. rate_limited",
+            "title": "Code",
+            "type": "string"
+          },
+          "fields": {
             "items": {
-              "$ref": "#/components/schemas/ValidationError"
+              "$ref": "#/components/schemas/FieldError"
             },
-            "title": "Detail",
+            "title": "Fields",
             "type": "array"
+          },
+          "message": {
+            "description": "Human-readable, safe to show to a user",
+            "title": "Message",
+            "type": "string"
           }
         },
-        "title": "HTTPValidationError",
+        "required": [
+          "code",
+          "message"
+        ],
+        "title": "ErrorDetail",
         "type": "object"
       },
-      "HealthResponse": {
+      "ErrorResponse": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorDetail"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "success": {
+            "const": false,
+            "default": false,
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "error",
+          "request_id"
+        ],
+        "title": "ErrorResponse",
+        "type": "object"
+      },
+      "FieldError": {
+        "properties": {
+          "field": {
+            "description": "Dotted location of the invalid input, e.g. body.message",
+            "title": "Field",
+            "type": "string"
+          },
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "message"
+        ],
+        "title": "FieldError",
+        "type": "object"
+      },
+      "HealthStatus": {
         "properties": {
           "status": {
             "title": "Status",
@@ -144,38 +212,36 @@
         "required": [
           "status"
         ],
-        "title": "HealthResponse",
+        "title": "HealthStatus",
         "type": "object"
       },
-      "ReadyResponse": {
+      "ReadyStatus": {
         "properties": {
           "llm_model": {
             "title": "Llm Model",
             "type": "string"
           },
+          "speech_enabled": {
+            "title": "Speech Enabled",
+            "type": "boolean"
+          },
           "status": {
             "title": "Status",
             "type": "string"
-          },
-          "tts_configured": {
-            "title": "Tts Configured",
-            "type": "boolean"
           }
         },
         "required": [
           "status",
-          "tts_configured",
+          "speech_enabled",
           "llm_model"
         ],
-        "title": "ReadyResponse",
+        "title": "ReadyStatus",
         "type": "object"
       },
       "ResetRequest": {
         "properties": {
           "session_id": {
-            "maxLength": 64,
-            "minLength": 8,
-            "pattern": "^[A-Za-z0-9_-]+$",
+            "pattern": "^[A-Za-z0-9_-]{8,64}$",
             "title": "Session Id",
             "type": "string"
           }
@@ -186,44 +252,136 @@
         "title": "ResetRequest",
         "type": "object"
       },
-      "ValidationError": {
+      "ResetResult": {
         "properties": {
-          "ctx": {
-            "title": "Context",
-            "type": "object"
-          },
-          "input": {
-            "title": "Input"
-          },
-          "loc": {
-            "items": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "integer"
-                }
-              ]
-            },
-            "title": "Location",
-            "type": "array"
-          },
-          "msg": {
-            "title": "Message",
-            "type": "string"
-          },
-          "type": {
-            "title": "Error Type",
+          "session_id": {
+            "title": "Session Id",
             "type": "string"
           }
         },
         "required": [
-          "loc",
-          "msg",
-          "type"
+          "session_id"
         ],
-        "title": "ValidationError",
+        "title": "ResetResult",
+        "type": "object"
+      },
+      "SuccessResponse_ChatReply_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ChatReply"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "success": {
+            "const": true,
+            "default": true,
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data",
+          "request_id"
+        ],
+        "title": "SuccessResponse[ChatReply]",
+        "type": "object"
+      },
+      "SuccessResponse_HealthStatus_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/HealthStatus"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "success": {
+            "const": true,
+            "default": true,
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data",
+          "request_id"
+        ],
+        "title": "SuccessResponse[HealthStatus]",
+        "type": "object"
+      },
+      "SuccessResponse_ReadyStatus_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ReadyStatus"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "success": {
+            "const": true,
+            "default": true,
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data",
+          "request_id"
+        ],
+        "title": "SuccessResponse[ReadyStatus]",
+        "type": "object"
+      },
+      "SuccessResponse_ResetResult_": {
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/ResetResult"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "success": {
+            "const": true,
+            "default": true,
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data",
+          "request_id"
+        ],
+        "title": "SuccessResponse[ResetResult]",
+        "type": "object"
+      },
+      "SuccessResponse_list_DoctorOut__": {
+        "properties": {
+          "data": {
+            "items": {
+              "$ref": "#/components/schemas/DoctorOut"
+            },
+            "title": "Data",
+            "type": "array"
+          },
+          "request_id": {
+            "title": "Request Id",
+            "type": "string"
+          },
+          "success": {
+            "const": true,
+            "default": true,
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data",
+          "request_id"
+        ],
+        "title": "SuccessResponse[list[DoctorOut]]",
         "type": "object"
       }
     },
@@ -260,21 +418,81 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ChatResponse"
+                  "$ref": "#/components/schemas/SuccessResponse_ChatReply_"
                 }
               }
             },
             "description": "Successful Response"
           },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found, or an expired audio link"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Invalid input"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limited"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Claude or Vartaloop failed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A required key is not configured"
           }
         },
         "security": [
@@ -303,18 +521,85 @@
           "required": true
         },
         "responses": {
-          "204": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SuccessResponse_ResetResult_"
+                }
+              }
+            },
             "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found, or an expired audio link"
           },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Invalid input"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limited"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Claude or Vartaloop failed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A required key is not configured"
           }
         },
         "security": [
@@ -336,15 +621,81 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/DoctorOut"
-                  },
-                  "title": "Response Doctors Api V1 Doctors Get",
-                  "type": "array"
+                  "$ref": "#/components/schemas/SuccessResponse_list_DoctorOut__"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found, or an expired audio link"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Invalid input"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limited"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Claude or Vartaloop failed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A required key is not configured"
           }
         },
         "security": [
@@ -358,19 +709,18 @@
         ]
       }
     },
-    "/api/v1/tts": {
+    "/api/v1/speech/{speech_id}": {
       "get": {
-        "description": "Speak ``text`` with Vartaloop. A GET, so an <audio> element can play it as\nit streams; the key stays on the server.",
-        "operationId": "tts_api_v1_tts_get",
+        "description": "Stream a reply's audio from Vartaloop as it is synthesised.",
+        "operationId": "speech_audio_api_v1_speech__speech_id__get",
         "parameters": [
           {
-            "in": "query",
-            "name": "text",
+            "in": "path",
+            "name": "speech_id",
             "required": true,
             "schema": {
-              "maxLength": 2000,
-              "minLength": 1,
-              "title": "Text",
+              "pattern": "^[A-Za-z0-9_-]{16,64}$",
+              "title": "Speech Id",
               "type": "string"
             }
           }
@@ -382,23 +732,78 @@
             },
             "description": "Ogg/Opus audio"
           },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Missing or invalid API key"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Not found, or an expired audio link"
+          },
           "422": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
+                  "$ref": "#/components/schemas/ErrorResponse"
                 }
               }
             },
-            "description": "Validation Error"
+            "description": "Invalid input"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Rate limited"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unexpected error"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Claude or Vartaloop failed"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "A required key is not configured"
           }
         },
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ],
-        "summary": "Tts",
+        "summary": "Speech Audio",
         "tags": [
           "voice"
         ]
@@ -406,13 +811,14 @@
     },
     "/health": {
       "get": {
+        "description": "Liveness: the process is up.",
         "operationId": "health_health_get",
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/HealthResponse"
+                  "$ref": "#/components/schemas/SuccessResponse_HealthStatus_"
                 }
               }
             },
@@ -427,13 +833,14 @@
     },
     "/ready": {
       "get": {
+        "description": "Readiness, and which optional features are on (the web app reads this).",
         "operationId": "ready_ready_get",
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/ReadyResponse"
+                  "$ref": "#/components/schemas/SuccessResponse_ReadyStatus_"
                 }
               }
             },

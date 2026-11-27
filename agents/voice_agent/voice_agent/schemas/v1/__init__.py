@@ -1,4 +1,4 @@
-"""Request and response bodies for /api/v1."""
+"""Request bodies and response ``data`` payloads for /api/v1."""
 
 from __future__ import annotations
 
@@ -6,10 +6,16 @@ from datetime import date, time
 
 from pydantic import BaseModel, Field
 
+from voice_agent.schemas.common import SessionId
+
 
 class ChatRequest(BaseModel):
-    session_id: str = Field(min_length=8, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
+    session_id: SessionId
     message: str = Field(min_length=1, max_length=1000)
+
+
+class ResetRequest(BaseModel):
+    session_id: SessionId
 
 
 class AppointmentOut(BaseModel):
@@ -21,13 +27,16 @@ class AppointmentOut(BaseModel):
     patient_name: str
 
 
-class ChatResponse(BaseModel):
+class ChatReply(BaseModel):
     reply: str
-    appointments: list[AppointmentOut]
+    appointments: list[AppointmentOut] = Field(description="Booked during this turn")
+    audio_url: str | None = Field(
+        description="Short-lived link to the spoken reply; null when speech is off"
+    )
 
 
-class ResetRequest(BaseModel):
-    session_id: str = Field(min_length=8, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
+class ResetResult(BaseModel):
+    session_id: str
 
 
 class DoctorOut(BaseModel):

@@ -17,8 +17,26 @@ from voice_agent.services.conversation import (
 MONDAY = date(2026, 11, 30)
 
 
-def service(model: ScriptedChatModel, max_rounds: int = 6) -> ConversationService:
-    svc = ConversationService(model, clinic(), timezone="Asia/Kolkata", max_tool_rounds=max_rounds)
+class Clock:
+    def __init__(self) -> None:
+        self.now = 0.0
+
+    def __call__(self) -> float:
+        return self.now
+
+
+def service(
+    model: ScriptedChatModel, max_rounds: int = 6, clock: Clock | None = None
+) -> ConversationService:
+    svc = ConversationService(
+        model,
+        clinic(),
+        timezone="Asia/Kolkata",
+        max_tool_rounds=max_rounds,
+        session_ttl_seconds=60,
+        max_sessions=2,
+        clock=clock or Clock(),
+    )
     svc.today = lambda: MONDAY  # type: ignore[method-assign]
     return svc
 
@@ -71,6 +89,25 @@ async def test_reset_forgets_the_conversation() -> None:
     svc.reset("session-1")
     await svc.reply("session-1", "again")
     assert len(model.calls[1]) == 1
+
+
+async def test_idle_sessions_are_forgotten() -> None:
+    clock = Clock()
+    model = ScriptedChatModel(text_reply("one"), text_reply("two"))
+    svc = service(model, clock=clock)
+    await svc.reply("session-1", "first")
+    clock.now = 61
+    await svc.reply("session-1", "after a long pause")
+    assert len(model.calls[1]) == 1
+
+
+async def test_oldest_session_is_dropped_past_the_cap() -> None:
+    model = ScriptedChatModel(*(text_reply(str(i)) for i in range(4)))
+    svc = service(model)
+    for session in ("session-a", "session-b", "session-c"):
+        await svc.reply(session, "hi")
+    await svc.reply("session-a", "again")
+    assert len(model.calls[3]) == 1
 
 
 async def test_refusal_gets_a_safe_reply_and_is_not_kept() -> None:

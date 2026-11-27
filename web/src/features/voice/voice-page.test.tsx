@@ -40,14 +40,19 @@ const doctors = [
   },
 ]
 
-function mockApi(reply: { reply: string; appointments: unknown[] }) {
+const ok = (data: unknown) => Response.json({ success: true, data, request_id: 'req-1' })
+
+function mockApi(
+  reply: { reply: string; appointments: unknown[]; audio_url?: string | null },
+  speechEnabled = false,
+) {
   const fetchMock = vi.fn<typeof fetch>(async (input: RequestInfo | URL) => {
     const url = String(input)
     if (url.endsWith('/ready'))
-      return Response.json({ status: 'ok', tts_configured: false, llm_model: 'claude-opus-5-5' })
-    if (url.endsWith('/api/v1/doctors')) return Response.json(doctors)
-    if (url.endsWith('/api/v1/chat')) return Response.json(reply)
-    return new Response(null, { status: 204 })
+      return ok({ status: 'ok', speech_enabled: speechEnabled, llm_model: 'claude-opus-5-5' })
+    if (url.endsWith('/api/v1/doctors')) return ok(doctors)
+    if (url.endsWith('/api/v1/chat')) return ok({ audio_url: null, ...reply })
+    return ok({ session_id: 'x' })
   })
   vi.stubGlobal('fetch', fetchMock)
   return fetchMock
@@ -89,6 +94,40 @@ describe('VoicePage', () => {
     await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Listening'))
     expect(mic?.started).toBe(2)
     expect(screen.getByText(/Voice replies are off/)).toBeInTheDocument()
+  })
+
+  it('plays the reply from its audio link with the mic off, then listens again', async () => {
+    vi.stubGlobal('webkitSpeechRecognition', FakeRecognition)
+    const played: FakeAudio[] = []
+    class FakeAudio {
+      onended: (() => void) | null = null
+      onerror: (() => void) | null = null
+      readonly src: string
+      constructor(src: string) {
+        this.src = src
+        played.push(this)
+      }
+      play() {
+        return Promise.resolve()
+      }
+      pause() {}
+    }
+    vi.stubGlobal('Audio', FakeAudio)
+    mockApi({ reply: 'Namaste!', appointments: [], audio_url: '/api/v1/speech/abc123' }, true)
+    const user = userEvent.setup()
+    render(<VoicePage />)
+
+    await user.click(screen.getByRole('button', { name: /start call/i }))
+    const mic = FakeRecognition.last
+    act(() => mic?.say('Hello', true))
+
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent('Speaking'))
+    expect(played[0]?.src).toBe('/api/v1/speech/abc123')
+    expect(mic?.started).toBe(1)
+
+    act(() => played[0]?.onended?.())
+    expect(screen.getByRole('status')).toHaveTextContent('Listening')
+    expect(mic?.started).toBe(2)
   })
 
   it('lists appointments booked on the call', async () => {

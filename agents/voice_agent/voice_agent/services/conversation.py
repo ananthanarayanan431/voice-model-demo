@@ -1,9 +1,11 @@
 """One patient turn: send the transcript to Claude, run its tool calls, return
-the reply to speak. Conversations are kept in memory per session id."""
+the reply to speak. Conversations live in memory per session id and are
+forgotten after ``SESSION_TTL_SECONDS`` idle."""
 
 from __future__ import annotations
 
 import asyncio
+import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -16,6 +18,7 @@ from voice_agent.chat.tools import TOOLS, ClinicTools
 from voice_agent.prompts.base import system_prompt
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from datetime import date
 
     from anthropic.types.beta import (
@@ -28,7 +31,6 @@ if TYPE_CHECKING:
     from voice_agent.models import Appointment
     from voice_agent.services.clinic import ClinicStore
 
-MAX_SESSIONS = 500
 FALLBACK_REPLY = "Sorry, I could not finish that just now. Could you say it again?"
 REFUSAL_REPLY = "I can't help with that on this line. The front desk will call you back."
 
@@ -39,16 +41,33 @@ class TurnResult:
     appointments: list[Appointment] = field(default_factory=list[Any])
 
 
+@dataclass
+class _Session:
+    messages: list[BetaMessageParam] = field(default_factory=list[Any])
+    last_used: float = 0.0
+    lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+
+
 class ConversationService:
     def __init__(
-        self, model: ChatModel, store: ClinicStore, timezone: str, max_tool_rounds: int
+        self,
+        model: ChatModel,
+        store: ClinicStore,
+        *,
+        timezone: str,
+        max_tool_rounds: int,
+        session_ttl_seconds: float,
+        max_sessions: int,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._model = model
         self._store = store
         self._zone = ZoneInfo(timezone)
         self._max_rounds = max_tool_rounds
-        self._sessions: OrderedDict[str, list[BetaMessageParam]] = OrderedDict()
-        self._locks: dict[str, asyncio.Lock] = {}
+        self._ttl = session_ttl_seconds
+        self._max_sessions = max_sessions
+        self._clock = clock
+        self._sessions: OrderedDict[str, _Session] = OrderedDict()
 
     def today(self) -> date:
         return datetime.now(self._zone).date()
@@ -57,14 +76,13 @@ class ConversationService:
         self._sessions.pop(session_id, None)
 
     async def reply(self, session_id: str, text: str) -> TurnResult:
-        lock = self._locks.setdefault(session_id, asyncio.Lock())
-        async with lock:
-            return await self._turn(session_id, text)
+        session = self._session(session_id)
+        async with session.lock:
+            return await self._turn(session_id, session, text)
 
-    async def _turn(self, session_id: str, text: str) -> TurnResult:
-        history = self._history(session_id)
+    async def _turn(self, session_id: str, session: _Session, text: str) -> TurnResult:
         # Work on a copy: a failed turn must not leave half a tool exchange behind.
-        messages: list[BetaMessageParam] = [*history, {"role": "user", "content": text}]
+        messages: list[BetaMessageParam] = [*session.messages, {"role": "user", "content": text}]
         today = self.today()
         tools = ClinicTools(self._store, today)
         system = system_prompt(today)
@@ -80,7 +98,7 @@ class ConversationService:
                 return TurnResult(REFUSAL_REPLY)
             if response.stop_reason != "tool_use":
                 reply = " ".join(b.text for b in response.content if b.type == "text").strip()
-                history[:] = messages
+                session.messages = messages
                 return TurnResult(reply or FALLBACK_REPLY, list(tools.booked))
 
             results: list[BetaToolResultBlockParam] = []
@@ -100,17 +118,27 @@ class ConversationService:
             messages.append({"role": "user", "content": results})
 
         logger.warning("Tool round limit reached for session {}", session_id)
-        history[:] = messages
+        session.messages = messages
         return TurnResult(FALLBACK_REPLY, list(tools.booked))
 
-    def _history(self, session_id: str) -> list[BetaMessageParam]:
-        history = self._sessions.get(session_id)
-        if history is None:
-            history = []
-            self._sessions[session_id] = history
-            while len(self._sessions) > MAX_SESSIONS:
-                oldest, _ = self._sessions.popitem(last=False)
-                self._locks.pop(oldest, None)
+    def _session(self, session_id: str) -> _Session:
+        now = self._clock()
+        self._expire(now)
+        session = self._sessions.get(session_id)
+        if session is None:
+            session = _Session()
+            self._sessions[session_id] = session
+            while len(self._sessions) > self._max_sessions:
+                self._sessions.popitem(last=False)
         else:
             self._sessions.move_to_end(session_id)
-        return history
+        session.last_used = now
+        return session
+
+    def _expire(self, now: float) -> None:
+        # Sessions are kept in last-used order, so the idle ones are at the front.
+        while self._sessions:
+            oldest_id, oldest = next(iter(self._sessions.items()))
+            if now - oldest.last_used < self._ttl or oldest.lock.locked():
+                break
+            del self._sessions[oldest_id]

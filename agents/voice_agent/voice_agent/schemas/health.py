@@ -1,15 +1,15 @@
-"""Health and readiness bodies."""
+"""Health and readiness payloads."""
 
 from __future__ import annotations
 
 from pydantic import BaseModel
 
 
-class HealthResponse(BaseModel):
+class HealthStatus(BaseModel):
     status: str
 
 
-class ReadyResponse(BaseModel):
+class ReadyStatus(BaseModel):
     status: str
-    tts_configured: bool
+    speech_enabled: bool
     llm_model: str

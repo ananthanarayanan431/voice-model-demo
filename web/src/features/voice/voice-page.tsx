@@ -31,19 +31,16 @@ const STATUS_LABEL: Record<CallStatus, string> = {
 
 export function VoicePage() {
   const [lang, setLang] = useState<string>('en-IN')
-  const [ttsReady, setTtsReady] = useState<boolean | null>(null)
+  const [speechEnabled, setSpeechEnabled] = useState<boolean | null>(null)
   const [doctors, setDoctors] = useState<DoctorOut[]>([])
   const [typed, setTyped] = useState('')
 
-  const { state, supported, startCall, endCall, newCall, sendText } = useVoiceCall({
-    lang,
-    speakReplies: ttsReady === true,
-  })
+  const { state, supported, startCall, endCall, newCall, sendText } = useVoiceCall({ lang })
 
   useEffect(() => {
     getReady()
-      .then((ready) => setTtsReady(ready.tts_configured))
-      .catch(() => setTtsReady(false))
+      .then((ready) => setSpeechEnabled(ready.speech_enabled))
+      .catch(() => setSpeechEnabled(false))
     getDoctors()
       .then(setDoctors)
       .catch(() => setDoctors([]))
@@ -228,7 +225,7 @@ export function VoicePage() {
 
           <Panel title="Good to know" icon={<Info aria-hidden className="size-4" />}>
             <ul className="text-muted list-disc space-y-1.5 pl-4 text-sm">
-              {ttsReady === false ? (
+              {speechEnabled === false ? (
                 <li>
                   Voice replies are off: add <code>VARTALOOP_API_KEY</code> to{' '}
                   <code>agents/voice_agent/.env</code>. Replies still show as text.

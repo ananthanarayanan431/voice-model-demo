@@ -29,6 +29,7 @@ ENV PATH="/app/.venv/bin:$PATH" \
     PORT=8000 \
     RELOAD=false \
     LOG_JSON=true \
+    ENVIRONMENT=production \
     # The package lives in site-packages; data/ (and any .env) live here, and
     # relative paths resolve against this.
     VOICE_AGENT_DIR=/app
@@ -43,4 +44,6 @@ EXPOSE 8000
 HEALTHCHECK --interval=15s --timeout=3s --start-period=20s --retries=3 \
     CMD ["python", "-c", "import urllib.request,sys; sys.exit(urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2).status != 200)"]
 
+# One worker on purpose: conversations, audio links and rate limits live in
+# memory. Scale out only after moving them to a shared store.
 CMD ["sh", "-c", "exec uvicorn voice_agent.main:app --host \"$HOST\" --port \"$PORT\" --proxy-headers --no-access-log"]

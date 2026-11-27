@@ -14,8 +14,16 @@ if TYPE_CHECKING:
 
 @pytest.fixture(autouse=True)
 def isolated_settings(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
-    for name in ("VARTALOOP_API_KEY", "ANTHROPIC_API_KEY", "API_KEY", "ADDITIONAL_CORS_ORIGINS"):
+    for name in (
+        "VARTALOOP_API_KEY",
+        "ANTHROPIC_API_KEY",
+        "API_KEY",
+        "ADDITIONAL_CORS_ORIGINS",
+        "ENVIRONMENT",
+    ):
         monkeypatch.setenv(name, "")
+    monkeypatch.setenv("ENVIRONMENT", "test")
+    monkeypatch.setenv("LOG_LEVEL", "WARNING")
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()

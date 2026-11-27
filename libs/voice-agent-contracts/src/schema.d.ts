@@ -58,7 +58,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/tts": {
+    "/api/v1/speech/{speech_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -66,11 +66,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Tts
-         * @description Speak ``text`` with Vartaloop. A GET, so an <audio> element can play it as
-         *     it streams; the key stays on the server.
+         * Speech Audio
+         * @description Stream a reply's audio from Vartaloop as it is synthesised.
          */
-        get: operations["tts_api_v1_tts_get"];
+        get: operations["speech_audio_api_v1_speech__speech_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -86,7 +85,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Health */
+        /**
+         * Health
+         * @description Liveness: the process is up.
+         */
         get: operations["health_health_get"];
         put?: never;
         post?: never;
@@ -103,7 +105,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Ready */
+        /**
+         * Ready
+         * @description Readiness, and which optional features are on (the web app reads this).
+         */
         get: operations["ready_ready_get"];
         put?: never;
         post?: never;
@@ -138,19 +143,27 @@ export interface components {
              */
             start: string;
         };
+        /** ChatReply */
+        ChatReply: {
+            /**
+             * Appointments
+             * @description Booked during this turn
+             */
+            appointments: components["schemas"]["AppointmentOut"][];
+            /**
+             * Audio Url
+             * @description Short-lived link to the spoken reply; null when speech is off
+             */
+            audio_url: string | null;
+            /** Reply */
+            reply: string;
+        };
         /** ChatRequest */
         ChatRequest: {
             /** Message */
             message: string;
             /** Session Id */
             session_id: string;
-        };
-        /** ChatResponse */
-        ChatResponse: {
-            /** Appointments */
-            appointments: components["schemas"]["AppointmentOut"][];
-            /** Reply */
-            reply: string;
         };
         /** DoctorOut */
         DoctorOut: {
@@ -165,42 +178,127 @@ export interface components {
             /** Specialty */
             specialty: string;
         };
-        /** HTTPValidationError */
-        HTTPValidationError: {
-            /** Detail */
-            detail?: components["schemas"]["ValidationError"][];
+        /** ErrorDetail */
+        ErrorDetail: {
+            /**
+             * Code
+             * @description Stable machine-readable code, e.g. rate_limited
+             */
+            code: string;
+            /** Fields */
+            fields?: components["schemas"]["FieldError"][];
+            /**
+             * Message
+             * @description Human-readable, safe to show to a user
+             */
+            message: string;
         };
-        /** HealthResponse */
-        HealthResponse: {
+        /** ErrorResponse */
+        ErrorResponse: {
+            error: components["schemas"]["ErrorDetail"];
+            /** Request Id */
+            request_id: string;
+            /**
+             * Success
+             * @default false
+             * @constant
+             */
+            success: false;
+        };
+        /** FieldError */
+        FieldError: {
+            /**
+             * Field
+             * @description Dotted location of the invalid input, e.g. body.message
+             */
+            field: string;
+            /** Message */
+            message: string;
+        };
+        /** HealthStatus */
+        HealthStatus: {
             /** Status */
             status: string;
         };
-        /** ReadyResponse */
-        ReadyResponse: {
+        /** ReadyStatus */
+        ReadyStatus: {
             /** Llm Model */
             llm_model: string;
+            /** Speech Enabled */
+            speech_enabled: boolean;
             /** Status */
             status: string;
-            /** Tts Configured */
-            tts_configured: boolean;
         };
         /** ResetRequest */
         ResetRequest: {
             /** Session Id */
             session_id: string;
         };
-        /** ValidationError */
-        ValidationError: {
-            /** Context */
-            ctx?: Record<string, never>;
-            /** Input */
-            input?: unknown;
-            /** Location */
-            loc: (string | number)[];
-            /** Message */
-            msg: string;
-            /** Error Type */
-            type: string;
+        /** ResetResult */
+        ResetResult: {
+            /** Session Id */
+            session_id: string;
+        };
+        /** SuccessResponse[ChatReply] */
+        SuccessResponse_ChatReply_: {
+            data: components["schemas"]["ChatReply"];
+            /** Request Id */
+            request_id: string;
+            /**
+             * Success
+             * @default true
+             * @constant
+             */
+            success: true;
+        };
+        /** SuccessResponse[HealthStatus] */
+        SuccessResponse_HealthStatus_: {
+            data: components["schemas"]["HealthStatus"];
+            /** Request Id */
+            request_id: string;
+            /**
+             * Success
+             * @default true
+             * @constant
+             */
+            success: true;
+        };
+        /** SuccessResponse[ReadyStatus] */
+        SuccessResponse_ReadyStatus_: {
+            data: components["schemas"]["ReadyStatus"];
+            /** Request Id */
+            request_id: string;
+            /**
+             * Success
+             * @default true
+             * @constant
+             */
+            success: true;
+        };
+        /** SuccessResponse[ResetResult] */
+        SuccessResponse_ResetResult_: {
+            data: components["schemas"]["ResetResult"];
+            /** Request Id */
+            request_id: string;
+            /**
+             * Success
+             * @default true
+             * @constant
+             */
+            success: true;
+        };
+        /** SuccessResponse[list[DoctorOut]] */
+        SuccessResponse_list_DoctorOut__: {
+            /** Data */
+            data: components["schemas"]["DoctorOut"][];
+            /** Request Id */
+            request_id: string;
+            /**
+             * Success
+             * @default true
+             * @constant
+             */
+            success: true;
         };
     };
     responses: never;
@@ -230,16 +328,70 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ChatResponse"];
+                    "application/json": components["schemas"]["SuccessResponse_ChatReply_"];
                 };
             };
-            /** @description Validation Error */
+            /** @description Missing or invalid API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found, or an expired audio link */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Invalid input */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limited */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unexpected error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Claude or Vartaloop failed */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A required key is not configured */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -258,19 +410,75 @@ export interface operations {
         };
         responses: {
             /** @description Successful Response */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["SuccessResponse_ResetResult_"];
+                };
             };
-            /** @description Validation Error */
+            /** @description Missing or invalid API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found, or an expired audio link */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Invalid input */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limited */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unexpected error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Claude or Vartaloop failed */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A required key is not configured */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -290,18 +498,81 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DoctorOut"][];
+                    "application/json": components["schemas"]["SuccessResponse_list_DoctorOut__"];
+                };
+            };
+            /** @description Missing or invalid API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found, or an expired audio link */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Invalid input */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limited */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unexpected error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Claude or Vartaloop failed */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A required key is not configured */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
     };
-    tts_api_v1_tts_get: {
+    speech_audio_api_v1_speech__speech_id__get: {
         parameters: {
-            query: {
-                text: string;
-            };
+            query?: never;
             header?: never;
-            path?: never;
+            path: {
+                speech_id: string;
+            };
             cookie?: never;
         };
         requestBody?: never;
@@ -315,13 +586,67 @@ export interface operations {
                     "audio/ogg": unknown;
                 };
             };
-            /** @description Validation Error */
+            /** @description Missing or invalid API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Not found, or an expired audio link */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Invalid input */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limited */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unexpected error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Claude or Vartaloop failed */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A required key is not configured */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -341,7 +666,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HealthResponse"];
+                    "application/json": components["schemas"]["SuccessResponse_HealthStatus_"];
                 };
             };
         };
@@ -361,7 +686,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ReadyResponse"];
+                    "application/json": components["schemas"]["SuccessResponse_ReadyStatus_"];
                 };
             };
         };

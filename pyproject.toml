@@ -99,7 +99,7 @@ runtime-evaluated-decorators = ["pydantic.validate_call"]
 
 [tool.ruff.lint.isort]
 required-imports = ["from __future__ import annotations"]
-known-first-party = ["voice_agent"]
+known-first-party = ["voice_agent", "tests"]
 
 # --- Pyright ------------------------------------------------------------------
 # Runs from an agent's folder through `uv run`, so it uses that agent's venv.
@@ -107,13 +107,11 @@ known-first-party = ["voice_agent"]
 [tool.pyright]
 typeCheckingMode = "strict"
 pythonVersion = "3.12"
-# langgraph ships without a py.typed marker. Pyright still infers
-# their types from the source, so a missing stub is not worth an error.
-reportMissingTypeStubs = false
 
 # --- pytest -------------------------------------------------------------------
 # Each agent's tests run from that agent's folder (scripts/ci/python-checks.sh).
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 addopts = "-ra --strict-markers --import-mode=importlib"

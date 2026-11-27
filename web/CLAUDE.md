@@ -2,7 +2,8 @@
 
 > React 19 + Vite app: the Sunrise Hospitals patient assistant call screen. The
 > browser's speech recognition shows the patient's words live; each final
-> sentence goes to `POST /api/v1/chat`, and the reply plays from `GET /api/v1/tts`.
+> sentence goes to `POST /api/v1/chat`, and the reply plays from the short-lived
+> `audio_url` it returns.
 
 ## Quick Reference
 
@@ -18,13 +19,13 @@
 
 ## Key Files
 
-| File                                       | Purpose                                                       |
-| ------------------------------------------ | ------------------------------------------------------------- |
-| `src/features/voice/voice-page.tsx`        | The call screen: transcript, live words, controls, side panel |
-| `src/features/voice/use-voice-call.ts`     | Mic -> agent -> audio -> mic; the mic is off while replying   |
-| `src/features/voice/call-state.ts`         | Pure reducer for the call (tested without a browser)          |
-| `src/features/voice/speech-recognition.ts` | Types and helpers for the Web Speech API (Chrome, Edge)       |
-| `src/lib/api.ts`                           | REST client; every failure becomes an `ApiError`              |
+| File                                       | Purpose                                                          |
+| ------------------------------------------ | ---------------------------------------------------------------- |
+| `src/features/voice/voice-page.tsx`        | The call screen: transcript, live words, controls, side panel    |
+| `src/features/voice/use-voice-call.ts`     | Mic -> agent -> audio -> mic; the mic is off while replying      |
+| `src/features/voice/call-state.ts`         | Pure reducer for the call (tested without a browser)             |
+| `src/features/voice/speech-recognition.ts` | Types and helpers for the Web Speech API (Chrome, Edge)          |
+| `src/lib/api.ts`                           | REST client: unwraps the envelope's `data`; errors -> `ApiError` |
 
 ## Rules
 

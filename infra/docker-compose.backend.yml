@@ -21,8 +21,13 @@ services:
       # container always runs the production server settings.
       RELOAD: "false"
       LOG_JSON: "true"
+      ENVIRONMENT: production
+      # Trust X-Forwarded-For from nginx so rate limits see the real client.
+      # Safe because the port below is bound to localhost: only nginx (on the
+      # compose network) and this machine can reach the agent directly.
+      FORWARDED_ALLOW_IPS: "*"
     ports:
-      - "${VOICE_AGENT_PORT:-8000}:8000"
+      - "127.0.0.1:${VOICE_AGENT_PORT:-8000}:8000"
 
 networks:
   default:

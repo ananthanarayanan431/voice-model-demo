@@ -6,9 +6,11 @@ sent, so a non-2xx status is the whole story and a 200 always carries audio.
 
 from __future__ import annotations
 
+import asyncio
 from typing import TYPE_CHECKING
 
 import httpx
+from loguru import logger
 
 from voice_agent.core.errors import NotConfiguredError, UpstreamError
 
@@ -18,6 +20,7 @@ if TYPE_CHECKING:
     from voice_agent.config.integrations import VartaloopSettings
 
 OPUS_MEDIA_TYPE = "audio/ogg"
+_MAX_RETRY_WAIT_SECONDS = 2.0
 
 
 class SpeechStream:
@@ -52,6 +55,23 @@ class VartaloopTTS:
         if not key:
             msg = "VARTALOOP_API_KEY is not set in agents/voice_agent/.env."
             raise NotConfiguredError(msg)
+        response = await self._send(key, text)
+        if response.status_code == 503:
+            # Busy: nothing was billed. Retry once after the advertised wait.
+            await response.aclose()
+            wait = _retry_after(response.headers.get("retry-after"))
+            logger.info("Vartaloop busy; retrying in {}s", wait)
+            await asyncio.sleep(wait)
+            response = await self._send(key, text)
+        if response.is_error:
+            await response.aread()
+            await response.aclose()
+            logger.warning("Vartaloop returned {}", response.status_code)
+            msg = f"Text-to-speech failed (Vartaloop {response.status_code})."
+            raise UpstreamError(msg)
+        return SpeechStream(response)
+
+    async def _send(self, key: str, text: str) -> httpx.Response:
         request = self._client.build_request(
             "POST",
             f"{self._settings.VARTALOOP_API_URL}/v1/tts",
@@ -60,13 +80,14 @@ class VartaloopTTS:
             timeout=self._settings.VARTALOOP_TIMEOUT_SECONDS,
         )
         try:
-            response = await self._client.send(request, stream=True)
+            return await self._client.send(request, stream=True)
         except httpx.HTTPError as exc:
             msg = "Could not reach Vartaloop."
             raise UpstreamError(msg) from exc
-        if response.is_error:
-            await response.aread()
-            await response.aclose()
-            msg = f"Vartaloop returned {response.status_code}: {response.text[:200]}"
-            raise UpstreamError(msg)
-        return SpeechStream(response)
+
+
+def _retry_after(value: str | None) -> float:
+    try:
+        return min(max(float(value or 1), 0.0), _MAX_RETRY_WAIT_SECONDS)
+    except ValueError:
+        return 1.0
